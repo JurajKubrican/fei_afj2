@@ -1,82 +1,137 @@
 package main
 
+//import "./utils"
+
 import (
-	"os"
-	"bufio"
 	"fmt"
 	"strings"
 	"strconv"
 )
 
-type state struct {
+type nState struct {
 	id      string
-	arc     []string
+	next    map[string][]string
 	final   bool
 	initial bool
 }
 
-func readLines(path string) ([]string, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	var lines []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	return lines, scanner.Err()
+type dState struct {
+	id      map[string]struct{}
+	next    map[string]string
+	final   bool
+	initial bool
 }
 
-func writeLines(lines []string, path string) error {
-	file, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
+func readNStates(file string) (map[string]nState, []string, string) {
 
-	w := bufio.NewWriter(file)
-	for _, line := range lines {
-		fmt.Fprintln(w, line)
-	}
-	return w.Flush()
-}
-
-func main() {
-	lines, _ := readLines("./in1.txt")
-	if lines != nil {
+	lines, _ := readLines(file)
+	if lines == nil {
 		fmt.Println("empty / error")
 	}
 
-	var initialState string
-	var states = make(map[string]state)
-
+	/*
+	 * STATES
+	 */
+	initial := ""
+	var states = make(map[string]nState)
 	numStates, _ := strconv.Atoi(lines[0])
-	for i := 2; i < 2+numStates; i++ {
+	var i = 2;
+	for ; i < 2+numStates; i++ {
 		parsedLine := strings.Split(lines[i], " ")
-		newState := state{
-			id: parsedLine[0],
+		newState := nState{
+			id:   parsedLine[0],
+			next: make(map[string][]string),
 		}
 		if len(parsedLine) > 1 && strings.Contains(parsedLine[1], "F") {
 			newState.final = true
 		}
 		if len(parsedLine) > 1 && strings.Contains(parsedLine[1], "I") {
-			initialState = newState.id
+			newState.initial = true
+			initial = newState.id
 		}
 
 		states[newState.id] = newState
 	}
 
-	fmt.Println(initialState)
-	fmt.Println(states)
-
+	/*
+	 * Alpha
+	 */
 	var alphabet []string
 	numChars, _ := strconv.Atoi(lines[0])
-	for i := 2 + numStates; i < (2 + numStates + numChars); i++ {
+	for ; i < (2 + numStates + numChars); i++ {
 		alphabet = append(alphabet, lines[i])
 	}
-	fmt.Println(alphabet)
+
+	/*
+	 * NEXT
+	 */
+	for ; i < len(lines); i++ {
+		parsedLine := strings.Split(lines[i], ",")
+		state := states[parsedLine[0]]
+		next := state.next[parsedLine[1]]
+		next = append(next, parsedLine[2])
+		state.next[parsedLine[1]] = next
+	}
+
+	return states, alphabet, initial
+}
+
+func getDFAStateName(nStates map[string]nState, initialState string, char string) map[string]struct{} {
+
+	nState := nStates[initialState]
+
+	result := make(map[string]struct{})
+
+	if val, ok := nState.next[""]; ok {
+		for _, nextState := range val {
+			tempName := getDFAStateName(nStates, nextState, char)
+			for k, v := range tempName {
+				result[k] = v
+			}
+		}
+	}
+
+	if val, ok := nState.next[char]; ok {
+		for _, nextState := range val {
+			result[nextState] = struct{}{}
+		}
+	}
+	return result
+
+}
+
+//[]dState
+func makeDFA(nStates map[string]nState, alpha []string, initial string) {
+
+	initialName := getDFAStateName(nStates, initial, "a")
+
+
+	stack := Stack{}
+	stack.Push(initial)
+
+	for ; stack.size > 0; {
+		state:= stack.Pop()
+		for _
+	}
+
+	fmt.Println(name)
+	name = getDFAStateName(nStates, initial, "b")
+	fmt.Println(name)
+
+	//for _, nState := range nStates {
+	//	for _, next := range nState.next {
+	//		fmt.Println(next)
+	//	}
+	//}
+
+}
+
+func main() {
+	states, alphabet, initial := readNStates("./in1.txt")
+	makeDFA(states, alphabet, initial)
+	//dStates := makeDFA(states, alphabet)
+
+	//fmt.Println(alphabet)
+	//fmt.Println(states)
 
 }
