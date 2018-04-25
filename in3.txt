@@ -1,0 +1,15 @@
+4
+2
+q0 I
+q1
+q2 F
+qf F
+a
+b
+q0,a,q1
+q0,,qf
+q1,a,q1
+q1,a,q2
+q1,b,qf
+q2,a,q2
+q2,b,qf

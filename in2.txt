@@ -1,0 +1,12 @@
+3
+2
+q0 IF
+q1
+q2 F
+a
+b
+q0,a,q1
+q0,,q2
+q1,b,q1
+q2,a,q1
+q2,a,q2

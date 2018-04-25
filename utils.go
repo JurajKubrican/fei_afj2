@@ -4,6 +4,7 @@ import (
 	"os"
 	"bufio"
 	"fmt"
+	"sort"
 )
 
 func readLines(path string) ([]string, error) {
@@ -33,4 +34,17 @@ func writeLines(lines []string, path string) error {
 		fmt.Fprintln(w, line)
 	}
 	return w.Flush()
+}
+
+func strMapToStr(in map[string]struct{}) string {
+	keySlice := make([]string, 0)
+	for k := range in {
+		keySlice = append(keySlice, k)
+	}
+	sort.Strings(keySlice)
+	keys := ""
+	for _, k := range keySlice {
+		keys = keys + k
+	}
+	return keys
 }
