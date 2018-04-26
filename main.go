@@ -16,7 +16,7 @@ type nState struct {
 }
 
 type dState struct {
-	id      map[string]struct{}
+	id      map[string]struct{}// set str
 	next    map[string]map[string]struct{}
 	final   bool
 	initial bool
@@ -172,9 +172,9 @@ func makeDFA(nStates map[string]nState, alpha []string, initial string) ([]dStat
 	initialMap[initial] = struct{}{}
 	initialState := getDfaStateClosure(nStates, initialMap)
 	initialState.initial = true
+	dStates[strMapToStr(initialState.id)] = initialState
 	//pridame do Dstate
 
-	dStates[strMapToStr(initialState.id)] = initialState
 
 	stack := make([]dState, 0)
 	stack = append(stack, initialState)
@@ -182,7 +182,6 @@ func makeDFA(nStates map[string]nState, alpha []string, initial string) ([]dStat
 
 	for ; len(stack) > 0; {
 		state, stack = stack[0], stack[1:]
-		
 		for _, nextStates := range state.next {
 			strId := strMapToStr(nextStates)
 			if _, ok := dStates[strId]; !ok {
@@ -203,7 +202,5 @@ func makeDFA(nStates map[string]nState, alpha []string, initial string) ([]dStat
 func main() {
 	states, alphabet, initial := readNStates("./in4.txt")
 	dStates, alphabet := makeDFA(states, alphabet, initial)
-
 	writeDStates(dStates, alphabet, "./out1.txt")
-
 }
