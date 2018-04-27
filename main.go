@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strings"
 	"strconv"
+	"os"
+	"bufio"
+	"sort"
 )
 
-type nStateMap map[string]nState
-type dStateID map[string]struct{}
 
 type nState struct {
 	id      string
@@ -15,7 +16,10 @@ type nState struct {
 	final   bool
 	initial bool
 }
+type nStateMap map[string]nState
 
+
+type dStateID map[string]struct{}
 type dState struct {
 	id      dStateID // set str
 	next    map[string]dStateID
@@ -50,7 +54,6 @@ func readNStates(file string) (map[string]nState, []string, string) {
 			newState.initial = true
 			initial = newState.id
 		}
-
 		states[newState.id] = newState
 	}
 
@@ -95,21 +98,16 @@ func writeDStates(dStates []dState, alphabet []string, fileName string) {
 				stateLine = stateLine + "F"
 			}
 		}
-
 		result = append(result, stateLine)
 		for char, next := range state.next {
 			nextStr := strMapToStr(state.id) + "," + char + "," + strMapToStr(next)
 			nexts = append(nexts, nextStr)
 		}
-
 	}
-
 	for _, char := range alphabet {
 		result = append(result, char)
 	}
-
 	result = append(result, nexts...)
-
 	writeLines(result, fileName)
 }
 
@@ -175,7 +173,6 @@ func getDfaState(nStates nStateMap, startIDS dStateID) dState {
 
 }
 
-//[]dState
 func makeDFA(nStates nStateMap, alpha []string, initial string) ([]dState, []string) {
 
 	dStates := make(map[string]dState)
@@ -183,13 +180,8 @@ func makeDFA(nStates nStateMap, alpha []string, initial string) ([]dState, []str
 	// epsilony na vstupnom stave
 
 	initialState := getDfaState(nStates, nStates.getSimpleClosure(initial))
-	fmt.Println("found initial state", strMapToStr(initialState.id))
-	fmt.Println(initialState.next)
 	initialState.initial = true
 	dStates[strMapToStr(initialState.id)] = initialState
-
-	//os.Exit(0)
-	//pridame do Dstate
 
 	stack := make([]dState, 0)
 	stack = append(stack, initialState)
@@ -203,8 +195,6 @@ func makeDFA(nStates nStateMap, alpha []string, initial string) ([]dState, []str
 				newDstate := getDfaState(nStates, nextChars)
 				dStates[strId] = newDstate
 				stack = append(stack, newDstate)
-				//fmt.Println("appending ", strMapToStr(newDstate.id))
-				//fmt.Println( "next",newDstate.next)
 			}
 		}
 	}
@@ -217,7 +207,54 @@ func makeDFA(nStates nStateMap, alpha []string, initial string) ([]dState, []str
 }
 
 func main() {
-	states, alphabet, initial := readNStates("./in5.txt")
+	states, alphabet, initial := readNStates("./NKA.fsa")
 	dStates, alphabet := makeDFA(states, alphabet, initial)
-	writeDStates(dStates, alphabet, "./out1.txt")
+	writeDStates(dStates, alphabet, "./DKA.fsa")
+}
+
+
+/*
+UTILS
+*/
+
+func readLines(path string) ([]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return lines, scanner.Err()
+}
+
+func writeLines(lines []string, path string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	w := bufio.NewWriter(file)
+	for _, line := range lines {
+		fmt.Fprintln(w, line)
+	}
+	return w.Flush()
+}
+
+func strMapToStr(in map[string]struct{}) string {
+	keySlice := make([]string, 0)
+	for k := range in {
+		keySlice = append(keySlice, k)
+	}
+	sort.Strings(keySlice)
+	keys := ""
+	for _, k := range keySlice {
+		keys = keys + k
+	}
+	return keys
 }
