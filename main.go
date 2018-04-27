@@ -1,11 +1,10 @@
 package main
 
-//import "./utils"
-
 import (
 	"fmt"
 	"strings"
 	"strconv"
+	"os"
 )
 
 type nState struct {
@@ -16,7 +15,7 @@ type nState struct {
 }
 
 type dState struct {
-	id      map[string]struct{}// set str
+	id      map[string]struct{} // set str
 	next    map[string]map[string]struct{}
 	final   bool
 	initial bool
@@ -118,6 +117,7 @@ func getDFANextIDs(origState nState, result map[string]map[string]struct{}) map[
 			continue
 		}
 		if _, ok := result[char]; !ok {
+			//fmt.Println(char,result)
 			result[char] = make(map[string]struct{})
 		}
 		for _, state := range states {
@@ -127,32 +127,28 @@ func getDFANextIDs(origState nState, result map[string]map[string]struct{}) map[
 	return result
 }
 
+
 func getDfaStateClosure(nStates map[string]nState, startIDS map[string]struct{}) dState {
 
 	resultState := dState{
 		id:   startIDS,
 		next: make(map[string]map[string]struct{}),
 	}
-	// FOR  ID IN multiple Nstates
+
+	stack := make([]nState, 0)
 	for startID := range startIDS {
-		nState := nStates[startID]
-		resultState.final = resultState.final || nState.final      //if one of them is final
-		resultState.next = getDFANextIDs(nState, resultState.next) // append all next states
+		stack = append(stack, nStates[startID])
+	}
+	var state nState
+	for ; len(stack) > 0; {
+		state, stack = stack[0], stack[1:] //pop
+		resultState.id[state.id] = struct{}{}
+		resultState.final = resultState.final || state.final
+		resultState.next = getDFANextIDs(state, resultState.next) // append all next states
 
-		//ONLY EPS CLOSURES
-		if val, ok := nState.next[""]; ok {
-			for _, closureState := range val {
-
-				nextStateID := make(map[string]struct{})
-				nextStateID[closureState] = struct{}{}
-
-				//GET NEXT IDS
-				tempState := getDfaStateClosure(nStates, nextStateID)
-				for key := range tempState.id {
-					resultState.id[key] = struct{}{}
-					resultState.final = resultState.final || tempState.final
-					resultState.next = getDFANextIDs(nStates[closureState], resultState.next)
-				}
+		if nextEpss, ok := state.next[""]; ok {
+			for _, nextEpsStrId := range nextEpss {
+				stack = append(stack, nStates[nextEpsStrId])
 			}
 		}
 
@@ -171,10 +167,13 @@ func makeDFA(nStates map[string]nState, alpha []string, initial string) ([]dStat
 	initialMap := make(map[string]struct{})
 	initialMap[initial] = struct{}{}
 	initialState := getDfaStateClosure(nStates, initialMap)
+	fmt.Println("found initial state", strMapToStr(initialState.id))
+	fmt.Println(initialState.next)
 	initialState.initial = true
 	dStates[strMapToStr(initialState.id)] = initialState
-	//pridame do Dstate
 
+	os.Exit(0)
+	//pridame do Dstate
 
 	stack := make([]dState, 0)
 	stack = append(stack, initialState)
@@ -182,12 +181,14 @@ func makeDFA(nStates map[string]nState, alpha []string, initial string) ([]dStat
 
 	for ; len(stack) > 0; {
 		state, stack = stack[0], stack[1:]
-		for _, nextStates := range state.next {
-			strId := strMapToStr(nextStates)
+		for _, nextChars := range state.next {
+			strId := strMapToStr(nextChars)
 			if _, ok := dStates[strId]; !ok {
-				newDstate := getDfaStateClosure(nStates, nextStates)
+				newDstate := getDfaStateClosure(nStates, nextChars)
 				dStates[strId] = newDstate
 				stack = append(stack, newDstate)
+				//fmt.Println("appending ", strMapToStr(newDstate.id))
+				//fmt.Println( "next",newDstate.next)
 			}
 		}
 	}
