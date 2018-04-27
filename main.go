@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"strings"
 	"strconv"
-	"os"
 )
+
+type nStateMap map[string]nState
+type dStateID map[string]struct{}
 
 type nState struct {
 	id      string
@@ -15,8 +17,8 @@ type nState struct {
 }
 
 type dState struct {
-	id      map[string]struct{} // set str
-	next    map[string]map[string]struct{}
+	id      dStateID // set str
+	next    map[string]dStateID
 	final   bool
 	initial bool
 }
@@ -111,28 +113,36 @@ func writeDStates(dStates []dState, alphabet []string, fileName string) {
 	writeLines(result, fileName)
 }
 
-func getDFANextIDs(origState nState, result map[string]map[string]struct{}) map[string]map[string]struct{} {
-	for char, states := range origState.next {
-		if char == "" {
-			continue
+func (nStates nStateMap) getSimpleClosure(id string) dStateID {
+
+	result := make(dStateID)
+
+	stack := make([]string, 0)
+	stack = append(stack, id)
+
+	var stateId string
+	for ; len(stack) > 0; {
+		stateId, stack = stack[0], stack[1:] //pop
+		result[stateId] = struct{}{}
+
+		if eps, ok := nStates[stateId].next[""]; ok {
+			for _, epsId := range eps {
+				if _, ok := result[epsId]; ok {
+					continue
+				}
+				stack = append(stack, nStates[epsId].id)
+			}
 		}
-		if _, ok := result[char]; !ok {
-			//fmt.Println(char,result)
-			result[char] = make(map[string]struct{})
-		}
-		for _, state := range states {
-			result[char][state] = struct{}{}
-		}
+
 	}
 	return result
 }
 
-
-func getDfaStateClosure(nStates map[string]nState, startIDS map[string]struct{}) dState {
+func getDfaState(nStates nStateMap, startIDS dStateID) dState {
 
 	resultState := dState{
 		id:   startIDS,
-		next: make(map[string]map[string]struct{}),
+		next: make(map[string]dStateID),
 	}
 
 	stack := make([]nState, 0)
@@ -140,18 +150,25 @@ func getDfaStateClosure(nStates map[string]nState, startIDS map[string]struct{})
 		stack = append(stack, nStates[startID])
 	}
 	var state nState
+
 	for ; len(stack) > 0; {
 		state, stack = stack[0], stack[1:] //pop
-		resultState.id[state.id] = struct{}{}
-		resultState.final = resultState.final || state.final
-		resultState.next = getDFANextIDs(state, resultState.next) // append all next states
 
-		if nextEpss, ok := state.next[""]; ok {
-			for _, nextEpsStrId := range nextEpss {
-				stack = append(stack, nStates[nextEpsStrId])
+		resultState.final = resultState.final || state.final
+
+		for char, nextNStates := range state.next { // for alphabet in N states
+			if char == "" { //skip EPS
+				continue
+			}
+			if _, ok := resultState.next[char]; !ok { //init result[char]
+				resultState.next[char] = make(dStateID)
+			}
+			for _, stateNID := range nextNStates {
+				for closureId := range nStates.getSimpleClosure(stateNID) {
+					resultState.next[char][closureId] = struct{}{}
+				}
 			}
 		}
-
 	}
 
 	return resultState
@@ -159,20 +176,19 @@ func getDfaStateClosure(nStates map[string]nState, startIDS map[string]struct{})
 }
 
 //[]dState
-func makeDFA(nStates map[string]nState, alpha []string, initial string) ([]dState, []string) {
+func makeDFA(nStates nStateMap, alpha []string, initial string) ([]dState, []string) {
 
 	dStates := make(map[string]dState)
 
 	// epsilony na vstupnom stave
-	initialMap := make(map[string]struct{})
-	initialMap[initial] = struct{}{}
-	initialState := getDfaStateClosure(nStates, initialMap)
+
+	initialState := getDfaState(nStates, nStates.getSimpleClosure(initial))
 	fmt.Println("found initial state", strMapToStr(initialState.id))
 	fmt.Println(initialState.next)
 	initialState.initial = true
 	dStates[strMapToStr(initialState.id)] = initialState
 
-	os.Exit(0)
+	//os.Exit(0)
 	//pridame do Dstate
 
 	stack := make([]dState, 0)
@@ -184,7 +200,7 @@ func makeDFA(nStates map[string]nState, alpha []string, initial string) ([]dStat
 		for _, nextChars := range state.next {
 			strId := strMapToStr(nextChars)
 			if _, ok := dStates[strId]; !ok {
-				newDstate := getDfaStateClosure(nStates, nextChars)
+				newDstate := getDfaState(nStates, nextChars)
 				dStates[strId] = newDstate
 				stack = append(stack, newDstate)
 				//fmt.Println("appending ", strMapToStr(newDstate.id))
@@ -201,7 +217,7 @@ func makeDFA(nStates map[string]nState, alpha []string, initial string) ([]dStat
 }
 
 func main() {
-	states, alphabet, initial := readNStates("./in4.txt")
+	states, alphabet, initial := readNStates("./in5.txt")
 	dStates, alphabet := makeDFA(states, alphabet, initial)
 	writeDStates(dStates, alphabet, "./out1.txt")
 }
